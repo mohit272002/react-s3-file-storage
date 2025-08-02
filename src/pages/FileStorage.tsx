@@ -12,6 +12,14 @@ interface FileItem {
   type: string;
   uploadedAt: string;
   url: string;
+  folderId?: string;
+}
+
+interface FolderItem {
+  id: string;
+  name: string;
+  createdAt: string;
+  fileCount: number;
 }
 
 const FileStorage = () => {
@@ -23,7 +31,8 @@ const FileStorage = () => {
       size: 2547892,
       type: 'application/pdf',
       uploadedAt: '2024-01-15T10:30:00Z',
-      url: '#'
+      url: '#',
+      folderId: 'folder1'
     },
     {
       id: '2',
@@ -42,23 +51,74 @@ const FileStorage = () => {
       url: '#'
     }
   ]);
+
+  const [folders, setFolders] = useState<FolderItem[]>([
+    {
+      id: 'folder1',
+      name: 'Work Documents',
+      createdAt: '2024-01-10T08:00:00Z',
+      fileCount: 1
+    }
+  ]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('date');
+  const [currentPath, setCurrentPath] = useState<string[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 
   const handleFileUploaded = (newFile: FileItem) => {
-    setFiles(prev => [newFile, ...prev]);
+    const fileWithFolder = {
+      ...newFile,
+      folderId: currentFolderId || undefined
+    };
+    setFiles(prev => [fileWithFolder, ...prev]);
   };
 
   const handleFileDeleted = (fileId: string) => {
     setFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
+  const handleFolderCreated = (folderName: string) => {
+    const newFolder: FolderItem = {
+      id: `folder-${Date.now()}`,
+      name: folderName,
+      createdAt: new Date().toISOString(),
+      fileCount: 0
+    };
+    setFolders(prev => [newFolder, ...prev]);
+  };
+
+  const handleFolderDeleted = (folderId: string) => {
+    setFolders(prev => prev.filter(folder => folder.id !== folderId));
+    // Also delete files in this folder
+    setFiles(prev => prev.filter(file => file.folderId !== folderId));
+  };
+
+  const handleFolderClick = (folderId: string, folderName: string) => {
+    setCurrentFolderId(folderId);
+    setCurrentPath(prev => [...prev, folderName]);
+  };
+
+  const handleNavigate = (path: string[]) => {
+    setCurrentPath(path);
+    if (path.length === 0) {
+      setCurrentFolderId(null);
+    } else {
+      // Find folder by path - simplified for demo
+      const folderName = path[path.length - 1];
+      const folder = folders.find(f => f.name === folderName);
+      setCurrentFolderId(folder?.id || null);
+    }
+  };
+
   const filteredAndSortedFiles = useMemo(() => {
-    let filtered = files.filter(file =>
-      file.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Filter files by current folder and search term
+    let filtered = files.filter(file => {
+      const inCurrentFolder = currentFolderId ? file.folderId === currentFolderId : !file.folderId;
+      const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return inCurrentFolder && matchesSearch;
+    });
 
     switch (sortBy) {
       case 'name':
@@ -77,9 +137,21 @@ const FileStorage = () => {
     }
 
     return filtered;
-  }, [files, searchTerm, sortBy]);
+  }, [files, searchTerm, sortBy, currentFolderId]);
+
+  const filteredAndSortedFolders = useMemo(() => {
+    // Only show folders in root directory for now
+    if (currentFolderId) return [];
+    
+    return folders.filter(folder =>
+      folder.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ).sort((a, b) => a.name.localeCompare(b.name));
+  }, [folders, searchTerm, currentFolderId]);
 
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  const currentFolderFiles = files.filter(file => 
+    currentFolderId ? file.folderId === currentFolderId : !file.folderId
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30">
@@ -91,8 +163,12 @@ const FileStorage = () => {
           onViewModeChange={setViewMode}
           sortBy={sortBy}
           onSortChange={setSortBy}
-          totalFiles={files.length}
+          totalFiles={currentFolderFiles.length}
           totalSize={totalSize}
+          totalFolders={currentFolderId ? 0 : folders.length}
+          currentPath={currentPath}
+          onNavigate={handleNavigate}
+          onFolderCreated={handleFolderCreated}
         />
 
         <div className="mt-8 space-y-8">
@@ -109,13 +185,16 @@ const FileStorage = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">Your Files</h2>
               <div className="text-sm text-muted-foreground">
-                {filteredAndSortedFiles.length} of {files.length} files
+                {filteredAndSortedFiles.length + filteredAndSortedFolders.length} items
               </div>
             </div>
             
             <FileGrid 
-              files={filteredAndSortedFiles} 
+              files={filteredAndSortedFiles}
+              folders={filteredAndSortedFolders}
               onFileDeleted={handleFileDeleted}
+              onFolderDeleted={handleFolderDeleted}
+              onFolderClick={handleFolderClick}
             />
           </div>
         </div>

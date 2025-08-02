@@ -2,6 +2,8 @@ import { Search, Grid, List, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CreateFolderDialog } from './CreateFolderDialog';
+import { BreadcrumbNavigation } from './BreadcrumbNavigation';
 
 interface FileStorageHeaderProps {
   searchTerm: string;
@@ -12,6 +14,10 @@ interface FileStorageHeaderProps {
   onSortChange: (value: string) => void;
   totalFiles: number;
   totalSize: number;
+  totalFolders: number;
+  currentPath: string[];
+  onNavigate: (path: string[]) => void;
+  onFolderCreated: (folderName: string) => void;
 }
 
 export const FileStorageHeader = ({
@@ -22,7 +28,11 @@ export const FileStorageHeader = ({
   sortBy,
   onSortChange,
   totalFiles,
-  totalSize
+  totalSize,
+  totalFolders,
+  currentPath,
+  onNavigate,
+  onFolderCreated
 }: FileStorageHeaderProps) => {
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -41,11 +51,12 @@ export const FileStorageHeader = ({
             File Storage
           </h1>
           <p className="text-muted-foreground mt-1">
-            {totalFiles} files • {formatFileSize(totalSize)} total
+            {totalFolders} folders • {totalFiles} files • {formatFileSize(totalSize)} total
           </p>
         </div>
         
         <div className="flex items-center space-x-2">
+          <CreateFolderDialog onFolderCreated={onFolderCreated} />
           <Button
             variant={viewMode === 'grid' ? 'default' : 'outline'}
             size="sm"
@@ -63,12 +74,15 @@ export const FileStorageHeader = ({
         </div>
       </div>
 
+      {/* Breadcrumb Navigation */}
+      <BreadcrumbNavigation currentPath={currentPath} onNavigate={onNavigate} />
+
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search files..."
+            placeholder="Search files and folders..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10"

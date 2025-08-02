@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MoreVertical, Download, Trash2, FileText, Image, Video, File, Music } from 'lucide-react';
+import { MoreVertical, Download, Trash2, FileText, Image, Video, File, Music, Folder, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -12,14 +12,25 @@ interface FileItem {
   type: string;
   uploadedAt: string;
   url: string;
+  folderId?: string;
+}
+
+interface FolderItem {
+  id: string;
+  name: string;
+  createdAt: string;
+  fileCount: number;
 }
 
 interface FileGridProps {
   files: FileItem[];
+  folders: FolderItem[];
   onFileDeleted: (fileId: string) => void;
+  onFolderDeleted: (folderId: string) => void;
+  onFolderClick: (folderId: string, folderName: string) => void;
 }
 
-export const FileGrid = ({ files, onFileDeleted }: FileGridProps) => {
+export const FileGrid = ({ files, folders, onFileDeleted, onFolderDeleted, onFolderClick }: FileGridProps) => {
   const { toast } = useToast();
 
   const getFileIcon = (type: string) => {
@@ -65,18 +76,68 @@ export const FileGrid = ({ files, onFileDeleted }: FileGridProps) => {
     });
   };
 
-  if (files.length === 0) {
+  const handleFolderDelete = (folder: FolderItem) => {
+    onFolderDeleted(folder.id);
+    toast({
+      title: "Folder deleted",
+      description: `${folder.name} has been deleted.`,
+    });
+  };
+
+  if (files.length === 0 && folders.length === 0) {
     return (
       <div className="text-center py-12">
         <File className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No files yet</h3>
-        <p className="text-muted-foreground">Upload your first file to get started</p>
+        <h3 className="text-lg font-semibold mb-2">No files or folders yet</h3>
+        <p className="text-muted-foreground">Create a folder or upload your first file to get started</p>
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {/* Folders */}
+      {folders.map((folder) => (
+        <Card key={folder.id} className="p-4 hover:shadow-md transition-shadow duration-200 group cursor-pointer"
+              onClick={() => onFolderClick(folder.id, folder.name)}>
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 min-w-0">
+              <Folder className="h-8 w-8 text-blue-500" />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFolderDelete(folder);
+                  }}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          <div className="space-y-2">
+            <h3 className="font-medium text-sm truncate" title={folder.name}>
+              {folder.name}
+            </h3>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>{folder.fileCount} files</p>
+              <p>{formatDate(folder.createdAt)}</p>
+            </div>
+          </div>
+        </Card>
+      ))}
+      
+      {/* Files */}
       {files.map((file) => (
         <Card key={file.id} className="p-4 hover:shadow-md transition-shadow duration-200 group">
           <div className="flex items-start justify-between mb-3">
