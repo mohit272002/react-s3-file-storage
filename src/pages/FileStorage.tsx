@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { FileUpload } from '@/components/FileUpload';
 import { FileGrid } from '@/components/FileGrid';
 import { FileStorageHeader } from '@/components/FileStorageHeader';
@@ -23,6 +24,9 @@ interface FolderItem {
 }
 
 const FileStorage = () => {
+  const navigate = useNavigate();
+  const params = useParams();
+  
   const [files, setFiles] = useState<FileItem[]>([
     // Mock data for demonstration
     {
@@ -64,8 +68,27 @@ const FileStorage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('date');
-  const [currentPath, setCurrentPath] = useState<string[]>([]);
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+
+  // Parse current path from URL
+  const currentPath = useMemo(() => {
+    const folderPath = params.folderPath || params['*'] || '';
+    return folderPath ? folderPath.split('/').filter(Boolean) : [];
+  }, [params]);
+
+  const currentFolderId = useMemo(() => {
+    if (currentPath.length === 0) return null;
+    const folderName = currentPath[currentPath.length - 1];
+    const folder = folders.find(f => f.name.toLowerCase().replace(/\s+/g, '-') === folderName);
+    return folder?.id || null;
+  }, [currentPath, folders]);
+
+  // Update URL when path changes  
+  useEffect(() => {
+    const urlPath = currentPath.length > 0 ? `/${currentPath.join('/')}` : '/';
+    if (window.location.pathname !== urlPath) {
+      navigate(urlPath, { replace: true });
+    }
+  }, [currentPath, navigate]);
 
   const handleFileUploaded = (newFile: FileItem) => {
     const fileWithFolder = {
@@ -96,20 +119,14 @@ const FileStorage = () => {
   };
 
   const handleFolderClick = (folderId: string, folderName: string) => {
-    setCurrentFolderId(folderId);
-    setCurrentPath(prev => [...prev, folderName]);
+    const urlFolderName = folderName.toLowerCase().replace(/\s+/g, '-');
+    const newPath = [...currentPath, urlFolderName];
+    navigate(`/${newPath.join('/')}`);
   };
 
   const handleNavigate = (path: string[]) => {
-    setCurrentPath(path);
-    if (path.length === 0) {
-      setCurrentFolderId(null);
-    } else {
-      // Find folder by path - simplified for demo
-      const folderName = path[path.length - 1];
-      const folder = folders.find(f => f.name === folderName);
-      setCurrentFolderId(folder?.id || null);
-    }
+    const urlPath = path.length > 0 ? `/${path.join('/')}` : '/';
+    navigate(urlPath);
   };
 
   const filteredAndSortedFiles = useMemo(() => {

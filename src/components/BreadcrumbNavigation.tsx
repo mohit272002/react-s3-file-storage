@@ -12,6 +12,11 @@ export const BreadcrumbNavigation = ({ currentPath, onNavigate }: BreadcrumbNavi
     onNavigate(newPath);
   };
 
+  // Convert URL-friendly names back to display names
+  const getDisplayName = (urlName: string) => {
+    return urlName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   return (
     <div className="flex items-center space-x-1 text-sm">
       <Button
@@ -32,7 +37,7 @@ export const BreadcrumbNavigation = ({ currentPath, onNavigate }: BreadcrumbNavi
             onClick={() => handleNavigateToPath(index)}
             className="h-8 px-2 font-medium"
           >
-            {folder}
+            {getDisplayName(folder)}
           </Button>
         </div>
       ))}
